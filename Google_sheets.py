@@ -1,5 +1,5 @@
 '''
-Follow guidelines: https://developers.google.com/sheets/quickstart/python
+For instructions on how to run: https://developers.google.com/sheets/quickstart/python
 
 pip install --upgrade google-api-python-client
 '''
@@ -133,12 +133,6 @@ class Spreadsheet:
                                                 body=request_body).execute()
         
 def main():
-    """Shows basic usage of the Sheets API.
-
-    Creates a Sheets API service object and prints the names and majors of
-    students in a sample spreadsheet:
-    https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit
-    """
     SS=Spreadsheet('12YdppOoZUNZxhXvcY_cRgfXEfRnR_izlBsF8Sin3rw4')
     SS.add_sheet('testing')
     values=[["Door", "$15", "2", "3/15/2016"],["Engine", "$100", "1", "3/20/2016"]]
@@ -146,26 +140,6 @@ def main():
     SS.copy_sheet_to('testing','1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc')
     SS2=Spreadsheet('1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc')
     SS2.delete_sheet('Kopia av testing')
-    '''
-    credentials = get_credentials()
-    http = credentials.authorize(httplib2.Http())
-    discoveryUrl = ('https://sheets.googleapis.com/$discovery/rest?'
-                    'version=v4')
-    service = discovery.build('sheets', 'v4', http=http,
-                              discoveryServiceUrl=discoveryUrl)
-
-    spreadsheetId = '12YdppOoZUNZxhXvcY_cRgfXEfRnR_izlBsF8Sin3rw4'
-    rangeName = 'Blad1!A1:E1'
-    result = service.spreadsheets().values().append(
-        spreadsheetId=spreadsheetId, range=rangeName,valueInputOption='USER_ENTERED',body={
-  "range": rangeName,
-  "majorDimension": "ROWS",
-  "values": [
-    ["Door", "$15", "2", "3/15/2016"],
-    ["Engine", "$100", "1", "3/20/2016"],
-  ],
-}).execute()
     
-    '''
 if __name__ == '__main__':
     main()
