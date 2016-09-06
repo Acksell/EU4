@@ -64,9 +64,7 @@ class Sheet:
         
         self.Type=SheetProperties['properties']['sheetType']
         self.gridProperties=SheetProperties['properties']['gridProperties']
-        self.hidden=SheetProperties['properties']['hidden']
-        self.tabColor=SheetProperties['properties']['tabColor']
-        self.rightToLeft=SheetProperties['properties']['rightToLeft']
+    
         
 class Spreadsheet:
     def __init__(self,spreadsheetId): #may want to change accessing sheets by title to accessing by sheetobject.
@@ -79,14 +77,15 @@ class Spreadsheet:
         self.service = discovery.build('sheets', 'v4', http=http,
                               discoveryServiceUrl=discoveryUrl)
         
-        self.sheets=self.service.spreadsheets().get(spreadsheetId=self.ssId).execute()['sheets']
+        self.sheets=[Sheet(sheet) for sheet in self.service.spreadsheets().get(
+                        spreadsheetId=self.ssId).execute()['sheets']]
     
     def get_sheet(self, title):
         for sheet in self.sheets:
             if sheet.title == title:
                 return sheet
         else:
-            raise NameError("No sheet with title '%s' was found."%title)
+            return False
         
     def add_sheet(self,title,num_rows=500, num_columns=200,rgb=(0,0,0)):
         r,g,b = rgb
@@ -106,12 +105,12 @@ class Spreadsheet:
     def clear_values(self,title):
         '''Preserves formatting'''
         request_body = {'requests': [{'updateCells': {
-            'range': {'sheetId': self.get_sheetId(title)},
+            'range': {'sheetId': self.get_sheet(title).Id},
             'fields': 'userEnteredValue'}}]}
         self.service.spreadsheets().batchUpdate(spreadsheetId=self.ssId,
                                                 body=request_body).execute()
     
-    def append_values(self,values,cellrange,inptOption='USER_ENTERED'):
+    def append_values(self,values,cellrange,inptOption='RAW'):
         '''cellrange specifies sheet and range'''
         request_body = {'range':cellrange,'majorDimension':'ROWS','values':values}
         self.service.spreadsheets().values().append(spreadsheetId=self.ssId,
@@ -135,11 +134,10 @@ class Spreadsheet:
 def main():
     SS=Spreadsheet('12YdppOoZUNZxhXvcY_cRgfXEfRnR_izlBsF8Sin3rw4')
     SS.add_sheet('testing')
-    values=[["Door", "$15", "2", "3/15/2016"],["Engine", "$100", "1", "3/20/2016"]]
+    values=[["Door", "$15", "2", "3/15/2016"]]
     SS.append_values(values,'testing!A1:E1')
-    SS.copy_sheet_to('testing','1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc')
+    '''SS.copy_sheet_to('testing','1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc')
     SS2=Spreadsheet('1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc')
-    SS2.delete_sheet('Kopia av testing')
-    
+    SS2.delete_sheet('Kopia av testing')'''
 if __name__ == '__main__':
     main()
