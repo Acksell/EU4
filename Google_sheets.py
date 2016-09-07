@@ -64,8 +64,7 @@ class Sheet:
         
         self.Type=SheetProperties['properties']['sheetType']
         self.gridProperties=SheetProperties['properties']['gridProperties']
-    
-        
+            
 class Spreadsheet:
     def __init__(self,spreadsheetId): #may want to change accessing sheets by title to accessing by sheetobject.
         self.ssId=spreadsheetId
@@ -86,7 +85,12 @@ class Spreadsheet:
                 return sheet
         else:
             return False
-        
+            
+    def get_sheet_values(self,cellrange):
+        response=self.service.spreadsheets().values().get(
+                           spreadsheetId=self.ssId, range=cellrange).execute()
+        return response.get('values', [])
+
     def add_sheet(self,title,num_rows=500, num_columns=200,rgb=(0,0,0)):
         r,g,b = rgb
         request_body = {'requests':[{'addSheet':{'properties':{
@@ -110,7 +114,7 @@ class Spreadsheet:
         self.service.spreadsheets().batchUpdate(spreadsheetId=self.ssId,
                                                 body=request_body).execute()
     
-    def append_values(self,values,cellrange,inptOption='RAW'):
+    def append_values(self,values,cellrange,inptOption='USER_ENTERED'):
         '''cellrange specifies sheet and range'''
         request_body = {'range':cellrange,'majorDimension':'ROWS','values':values}
         self.service.spreadsheets().values().append(spreadsheetId=self.ssId,
@@ -119,7 +123,7 @@ class Spreadsheet:
                                                     valueInputOption=inptOption).execute()
     
     def copy_sheet_to(self,sheet, target_ssId):
-        request_body={"destinationSpreadsheetId": target_ssid}
+        request_body={"destinationSpreadsheetId": target_ssId}
         self.service.spreadsheets().sheets().copyTo(spreadsheetId=self.ssId,
                                                     sheetId=sheet.Id,
                                                     body=request_body).execute()
@@ -133,11 +137,9 @@ class Spreadsheet:
         
 def main():
     SS=Spreadsheet('12YdppOoZUNZxhXvcY_cRgfXEfRnR_izlBsF8Sin3rw4')
-    SS.add_sheet('testing')
-    values=[["Door", "$15", "2", "3/15/2016"]]
-    SS.append_values(values,'testing!A1:E1')
-    '''SS.copy_sheet_to('testing','1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc')
-    SS2=Spreadsheet('1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc')
-    SS2.delete_sheet('Kopia av testing')'''
+    graphs=SS.get_sheet('Graphs')
+    SS.copy_sheet_to(graphs,'1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc')
+    #SS2=Spreadsheet('1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc')
+    #SS2.delete_sheet('Kopia av testing')
 if __name__ == '__main__':
     main()
