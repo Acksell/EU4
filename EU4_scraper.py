@@ -27,7 +27,7 @@ def EU4_scrape(savefile,variables, tags):
         for line in range(2):
             date = save.readline() # get date from 2nd line
         # remove var name and dots (yyyy/mm/dd)
-        date = date[5:].replace('.','/').replace('.','/')[:-1] #:-1 to remove '\n'
+        date = date[5:].replace('.','-').replace('.','-')[:-1] #:-1 to remove '\n'
         result_table['date']=date
         save_txt = save.read()
         for tag in tags: # make regex dependent on 
@@ -36,7 +36,7 @@ def EU4_scrape(savefile,variables, tags):
                     pattern = r'{0}={{\n\t\t{2}=.*?{1}=(.*?)\n'.format(tag.upper(), var, patterns)
                     value = re.findall(pattern, save_txt, flags=re.DOTALL)
                     if value: break
-                result_table[tag][var] = value[0]  #[0] because regex returns a list
+                result_table[tag][var] = value[0].replace('.',',')  #[0] because regex returns a list
         return result_table
         
 def get_cellrange(name, rowlength):
@@ -58,7 +58,7 @@ if __name__ == '__main__':
     while True:
         latest_save= latest_eu4_save()
         if latest_save != previous_save:
-            print('NEW SAVE FOUND! It is called: ',latest_save)
+            print('NEW SAVE FOUND! It is at: ',latest_save)
             time.sleep(10)  # in case the file is in process of writing
             result_table = EU4_scrape(latest_save, variables, tags)
             SS = Google_sheets.Spreadsheet(SPREADSHEET_ID)
