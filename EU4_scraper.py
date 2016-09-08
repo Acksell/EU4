@@ -51,45 +51,76 @@ def EU4_scrape(savefile,variables, tags, get_provinces=True):
                     raise err
         return result_table
 
-def get_cellrange(name, rowlength):
+def get_cellrange(name, rowlength, rowstart=1):
     '''Currently does not support rowlength>25'''
-    cellrange=name+'!A1:'
-    cellrange+=chr(65+rowlength)+'1'
+    cellrange=name+'!A{}:'.format(rowstart)
+    cellrange+=chr(65+rowlength)+str(rowstart)
     return cellrange
-    
+
+def get_bracket_info():
+    """
+		subjects={
+			"NEV"
+			"LOR"
+			"BRB"
+			"FLA"
+			"HOL"
+		}
+    """
+    pass
+
 if __name__ == '__main__':
     import time
     import Google_sheets
+    from apiclient import errors
     SPREADSHEET_ID = "12YdppOoZUNZxhXvcY_cRgfXEfRnR_izlBsF8Sin3rw4"
     
     #tags = input('Enter country tags separated by a space: ').upper().split()
     tags = ['FRA','ARA','CAS','TUR','BUR','ENG','HUN','POL','HAB']
     # non_overseas_development
-    variables = ['base_tax','development','treasury','estimated_monthly_income','non_overseas_development']
+    variables = ['base_tax','development','treasury','estimated_monthly_income','non_overseas_development'] 
+    """		military_strength=65.06998
+		military_strength_with_allies=117.03299
+		army_strength=14.00861
+		navy_strength=3.79999
+        score
+        inflation
+        mercantilism
+        manpower
+        max_manpower
+    """
     previous_modified_time = 0
+    SS = Google_sheets.Spreadsheet(SPREADSHEET_ID)
+    #any variable works, not just [0]
+    row_insertion_index=SS.get_sheet(variables[0]).get_row_insertion_index()
     while True:
-        print('listening')
-        latest_save = latest_eu4_save()
-        latest_modified_time = os.path.getmtime(latest_save)
-        isfile=os.path.isfile(latest_save)
-        filesize = os.path.getsize(latest_save)
-        if latest_modified_time != previous_modified_time and isfile and filesize/1000>2000:
-            print('NEW SAVE FOUND! It is at: ',latest_save)
-            result_table = EU4_scrape(latest_save, variables, tags)
-            SS = Google_sheets.Spreadsheet(SPREADSHEET_ID)
-            for var in variables:
-                cellrange = get_cellrange(var,len(tags)+1)
-                if SS.get_sheet(var):
-                    if not SS.get_sheet_values(cellrange):
-                        SS.add_sheet(var)
-                        SS.append_values([['Date', *tags]], cellrange)
-                else:
-                    raise Exception('Clean this up later, your sheet doesnt exist')
-                values = [result_table[tag][var] for tag in tags]
-                SS.append_values([[result_table['date'], *values]], cellrange)
-            previous_modified_time = latest_modified_time
-        time.sleep(4)
-        
+        try:
+            print('listening')
+            latest_save = latest_eu4_save()
+            latest_modified_time = os.path.getmtime(latest_save)
+            isfile=os.path.isfile(latest_save)
+            filesize = os.path.getsize(latest_save)
+            if latest_modified_time != previous_modified_time and isfile and filesize/1000>2000:
+                print('NEW SAVE FOUND! It is at: ',latest_save)
+                result_table = EU4_scrape(latest_save, variables, tags)
+                
+                for var in variables:
+                    cellrange = get_cellrange(var, len(tags)+1, rowstart=row_insertion_index)
+                    if SS.get_sheet(var):
+                        if not SS.get_sheet_values(get_cellrange(var,len(tags)+1)):
+                            SS.add_sheet(var)
+                            SS.batchUpdate([['Date', *tags]], cellrange)
+                    else:
+                        raise Exception('Clean this up later, your sheet doesnt exist')
+                    values = [result_table[tag][var] for tag in tags]
+                    SS.batchUpdate([[result_table['date'], *values]], cellrange)
+                SS.batchExecute()
+                row_insertion_index+=1
+                previous_modified_time = latest_modified_time
+            time.sleep(3)
+        except errors.HttpError as err:
+            print(err)
+            time.sleep(15)
         
         
         

@@ -60,11 +60,22 @@ class Sheet:
         self.Id=SheetProperties['properties']['sheetId']
         self.title=SheetProperties['properties']['title']
         self.index=SheetProperties['properties']['index']
+        try:
+            self.rowData=SheetProperties['data'][0]['rowData']
+            self.empty=False
+        except KeyError:
+            self.empty=True
+            print('Empty sheet {} initialized'.format(self.title))
         # The above are used more frequently.
         
         self.Type=SheetProperties['properties']['sheetType']
         self.gridProperties=SheetProperties['properties']['gridProperties']
-            
+
+    def get_row_insertion_index(self):
+        if not self.empty:
+            return len(self.rowData)+1
+        return 1
+        
 class Spreadsheet:
     def __init__(self,spreadsheetId): #may want to change accessing sheets by title to accessing by sheetobject.
         self.ssId=spreadsheetId
@@ -77,8 +88,16 @@ class Spreadsheet:
                               discoveryServiceUrl=discoveryUrl)
         
         self.sheets=[Sheet(sheet) for sheet in self.service.spreadsheets().get(
-                        spreadsheetId=self.ssId).execute()['sheets']]
-    
+                        spreadsheetId=self.ssId,includeGridData=True).execute()['sheets']]
+        self.batch={"valueInputOption": "USER_ENTERED","data": []}
+            
+    def batchUpdate(self,values,cellrange):
+        self.batch['data'].append({'range':cellrange,'majorDimension':'ROWS','values':values})
+        
+    def batchExecute(self):
+         resp=self.service.spreadsheets().values().batchUpdate(spreadsheetId=self.ssId,body=self.batch).execute()
+         self.batch={"valueInputOption": "USER_ENTERED","data": []}
+        
     def get_sheet(self, title):
         for sheet in self.sheets:
             if sheet.title == title:
@@ -101,11 +120,11 @@ class Spreadsheet:
         try:
             response=self.service.spreadsheets().batchUpdate(spreadsheetId=self.ssId,
                                                              body=request_body).execute()
+            print(response['replies'])
             self.sheets.append(Sheet(response['replies'][0]['addSheet']))
-            print(response)
         except errors.HttpError:
             print("NOTE: spreadsheet with name '%s' already exists." % title) 
-    
+        
     def clear_values(self,title):
         '''Preserves formatting'''
         request_body = {'requests': [{'updateCells': {
@@ -136,10 +155,14 @@ class Spreadsheet:
                                                 body=request_body).execute()
         
 def main():
-    SS=Spreadsheet('12YdppOoZUNZxhXvcY_cRgfXEfRnR_izlBsF8Sin3rw4')
-    graphs=SS.get_sheet('Graphs')
-    SS.copy_sheet_to(graphs,'1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc')
-    #SS2=Spreadsheet('1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc')
-    #SS2.delete_sheet('Kopia av testing')
+    SS=Spreadsheet('1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc')
+    SS.add_sheet('testing')
+    SS.add_sheet('testing2')
+    SS.add_sheet('testing3')
+    SS.batchUpdate([['test','yolo']],'testing!B2:D2')
+    SS.batchUpdate([['test','yolo']],'testing!A3:C3')
+    SS.batchUpdate([['test','yolo']],'testing2!C3:E3')
+    SS.batchExecute()
+
 if __name__ == '__main__':
     main()
