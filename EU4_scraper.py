@@ -69,6 +69,8 @@ def get_bracket_info():
     """
     pass
 
+class SheetNotFound(Exception):pass
+    
 if __name__ == '__main__':
     import time
     import Google_sheets
@@ -76,7 +78,7 @@ if __name__ == '__main__':
     SPREADSHEET_ID = "12YdppOoZUNZxhXvcY_cRgfXEfRnR_izlBsF8Sin3rw4"
     
     #tags = input('Enter country tags separated by a space: ').upper().split()
-    tags = ['FRA','ARA','CAS','TUR','BUR','ENG','HUN','POL','HAB']
+    tags = ['FRA','CAS','ENG']
     # non_overseas_development
     variables = ['base_tax','development','treasury','estimated_monthly_income','non_overseas_development'] 
     """		military_strength=65.06998
@@ -91,8 +93,8 @@ if __name__ == '__main__':
     """
     previous_modified_time = 0
     SS = Google_sheets.Spreadsheet(SPREADSHEET_ID)
-    #any variable works, not just [0]
-    row_insertion_index=SS.get_sheet(variables[0]).get_row_insertion_index()
+    #any variable works, not just [0] (get_rowdata)
+    row_insertion_index=1
     while True:
         try:
             print('listening')
@@ -110,8 +112,9 @@ if __name__ == '__main__':
                         if not SS.get_sheet_values(get_cellrange(var,len(tags)+1)):
                             SS.add_sheet(var)
                             SS.batchUpdate([['Date', *tags]], cellrange)
+                            row_insertion_index+=1
                     else:
-                        raise Exception('Clean this up later, your sheet doesnt exist')
+                        raise SheetNotFound('Sheet \'%s\' does not exist, please create it manually.')
                     values = [result_table[tag][var] for tag in tags]
                     SS.batchUpdate([[result_table['date'], *values]], cellrange)
                 SS.batchExecute()
