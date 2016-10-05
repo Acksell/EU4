@@ -12,6 +12,7 @@ import re
 USERNAME='Larsson'
 
 savegame_dir = "C:\\Users\\{}\\Documents\\Paradox Interactive\\Europa Universalis IV\\save games".format(USERNAME)
+running_wd=os.getcwd()
 os.chdir(savegame_dir)
 
 def latest_eu4_save():
@@ -20,36 +21,42 @@ def latest_eu4_save():
     files.sort(key=lambda x: os.path.getmtime(x))
     return files[-1]
 
-def EU4_scrape(savefile,variables, tags, get_provinces=True): 
+def get_subject_nations(save_txt,tag):
+    for pattern in ('human','has_set_government_name','government_rank'):  # json structure is different for different nations
+        regex = r'{0}={{\n\t\t{2}=.*?{1}={{(.*?)}}'.format(tag.upper(),'subjects',pattern)
+        #returns subject nations embedded by whitespaces and quotes
+        regex_result = re.findall(regex,save_txt,flags=re.DOTALL)            
+        if regex_result: break 
+        
+    #removes whitespaces
+    regex_result=regex_result[0].split()
+
+    #removes quotes and yields subject nation
+    for nation in regex_result:
+        yield nation.split('"')[1]
+    
+def EU4_scrape_nations(save_txt,variables, tags, get_provinces=True): 
     #NOTE reformat to default to catching only humans if tags not specified
     result_table = {tag:{} for tag in tags}
-    with open(savefile, 'r') as save:
-        for line in range(2):
-            date = save.readline() # get date from 2nd line
-        # remove var name and dots (yyyy/mm/dd)
-        date = date[5:].replace('.','-').replace('.','-')[:-1] #:-1 to remove '\n'
-        result_table['date']=date
-        save_txt = save.read()
-        for tag in tags: # make regex dependent on 
-            prov_vars=['num_of_provinces_in_states','num_of_provinces_in_territories']
-            if get_provinces and not set(prov_vars).issubset(variables):
-                variables += ['num_of_provinces_in_states','num_of_provinces_in_territories']
-            for var in variables:
-                for patterns in ('human','has_set_government_name','government_rank'):  # json structure is different for humans and AI
-                    pattern = r'{0}={{\n\t\t{2}=.*?{1}=(.*?)\n'.format(tag.upper(), var, patterns)
-                    value = re.findall(pattern, save_txt, flags=re.DOTALL)
-                    if value: break
-                try:
-                    result_table[tag][var] = value[0].replace('.',',')  #[0] because regex returns a list
-                except IndexError as err:
-                    os.chdir('C:\\Users\Larsson\Desktop\Programming\Python\Web\EU4-Scraper')
-                    f=open('savefile.log','w')
-                    f.write(save_txt)
-                    f.close()
-                    print(pattern)
-                    print(tag,var,value)
-                    raise err
-        return result_table
+    for tag in tags: # make regex dependent on 
+        for var in variables:
+            for pattern in ('human','has_set_government_name','government_rank'):  # json structure is different for humans and AI
+                regex = r'{0}={{\n\t\t{2}=.*?{1}=(.*?)\n'.format(tag.upper(), var, pattern)
+                value = re.findall(regex, save_txt, flags=re.DOTALL)
+                if value: break
+            try:
+                result_table[tag][var] = value[0].replace('.',',')  #[0] because regex returns a list
+            except IndexError as err:
+                os.chdir(running_wd)
+                f=open('savefile.log','w')
+                f.write(save_txt)
+                f.write(pattern)
+                f.write('tag:{0} var:{1} value: {2}'.format(tag,var,value))
+                f.close()
+                print(pattern)
+                print(tag,var,value)
+                raise err
+    return result_table
 
 def get_cellrange(name, rowlength, rowstart=1):
     '''Currently does not support rowlength>25'''
@@ -58,15 +65,7 @@ def get_cellrange(name, rowlength, rowstart=1):
     return cellrange
 
 def get_bracket_info():
-    """
-		subjects={
-			"NEV"
-			"LOR"
-			"BRB"
-			"FLA"
-			"HOL"
-		}
-    """
+    """generalisation of get_subject_nations()"""
     pass
 
 class SheetNotFound(Exception):pass
@@ -78,9 +77,11 @@ if __name__ == '__main__':
     SPREADSHEET_ID = "12YdppOoZUNZxhXvcY_cRgfXEfRnR_izlBsF8Sin3rw4"
     
     #tags = input('Enter country tags separated by a space: ').upper().split()
-    tags = ['FRA','CAS','ENG']
+    tags = ['FRA','CAS','ENG','DAN','SWE','NOR']
     # non_overseas_development
-    variables = ['base_tax','development','treasury','estimated_monthly_income','non_overseas_development'] 
+    variables = ['base_tax','raw_development','treasury','estimated_monthly_income','non_overseas_development','manpower',
+                   'num_of_provinces_in_states','num_of_provinces_in_territories'] 
+                   
     """		military_strength=65.06998
 		military_strength_with_allies=117.03299
 		army_strength=14.00861
@@ -104,19 +105,33 @@ if __name__ == '__main__':
             filesize = os.path.getsize(latest_save)
             if latest_modified_time != previous_modified_time and isfile and filesize/1000>2000:
                 print('NEW SAVE FOUND! It is at: ',latest_save)
-                result_table = EU4_scrape(latest_save, variables, tags)
+                ### Might not want to open save more than once.
+                with open(latest_save, 'r') as save:
+                    for line in range(2):
+                        date = save.readline() # get date from 2nd line
+                    # remove var name and dots (yyyy/mm/dd)
+                    date = date[5:].replace('.','-').replace('.','-')[:-1] #:-1 to remove '\n'
+                    
+                    save_txt = save.read()
+
+                    result_table = EU4_scrape_nations(save_txt, variables, tags)
+                    
+                    for tag in tags:
+                        result_table[tag]['subjects']=EU4_scrape_nations(save_txt, ('raw_development'), get_subject_nations(save_txt,tag))
                 
                 for var in variables:
-                    cellrange = get_cellrange(var, len(tags)+1, rowstart=row_insertion_index)
                     if SS.get_sheet(var):
                         if not SS.get_sheet_values(get_cellrange(var,len(tags)+1)):
-                            SS.add_sheet(var)
+                            #SS.add_sheet(var)
+                            cellrange = get_cellrange(var, len(tags)+1, rowstart=1)
                             SS.batchUpdate([['Date', *tags]], cellrange)
-                            row_insertion_index+=1
+                            row_insertion_index=2
                     else:
-                        raise SheetNotFound('Sheet \'%s\' does not exist, please create it manually.')
+                        raise SheetNotFound('Sheet \'%s\' does not exist, please create it manually and rerun.')
+                        
                     values = [result_table[tag][var] for tag in tags]
-                    SS.batchUpdate([[result_table['date'], *values]], cellrange)
+                    cellrange = get_cellrange(var, len(tags)+1, rowstart=row_insertion_index)
+                    SS.batchUpdate([[date, *values]], cellrange)
                 SS.batchExecute()
                 row_insertion_index+=1
                 previous_modified_time = latest_modified_time
