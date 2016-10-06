@@ -77,7 +77,8 @@ class Sheet:
         return 1
         
 class Spreadsheet:
-    def __init__(self,spreadsheetId): #may want to change accessing sheets by title to accessing by sheetobject.
+    def __init__(self,spreadsheetId):
+        # add bool "execute" parameter to functions to specify whether it should add to batch or not.
         self.ssId=spreadsheetId
         
         credentials = get_credentials()
@@ -110,7 +111,7 @@ class Spreadsheet:
                            spreadsheetId=self.ssId, range=cellrange).execute()
         return response.get('values', [])
 
-    def add_sheet(self,title,num_rows=500, num_columns=200,rgb=(0,0,0)):
+    def add_sheet(self,title,num_rows=4525, num_columns=125,rgb=(0,0,0)):
         r,g,b = rgb
         request_body = {'requests':[{'addSheet':{'properties':{
             'title':title,'gridProperties':{
@@ -120,7 +121,6 @@ class Spreadsheet:
         try:
             response=self.service.spreadsheets().batchUpdate(spreadsheetId=self.ssId,
                                                              body=request_body).execute()
-            print(response['replies'])
             self.sheets.append(Sheet(response['replies'][0]['addSheet']))
         except errors.HttpError:
             print("NOTE: spreadsheet with name '%s' already exists." % title) 
@@ -155,14 +155,24 @@ class Spreadsheet:
                                                 body=request_body).execute()
         
 def main():
-    SS=Spreadsheet('1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc')
-    SS.add_sheet('testing')
-    SS.add_sheet('testing2')
-    SS.add_sheet('testing3')
-    SS.batchUpdate([['test','yolo']],'testing!B2:D2')
-    SS.batchUpdate([['test','yolo']],'testing!A3:C3')
-    SS.batchUpdate([['test','yolo']],'testing2!C3:E3')
-    SS.batchExecute()
-
+    '''Clears all non-protected sheets'''
+    ID='1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc' # Testing scripts
+    ID='12YdppOoZUNZxhXvcY_cRgfXEfRnR_izlBsF8Sin3rw4' # EU4 Multiplayer Sheet
+    ss=Spreadsheet(ID)
+    if input("Clear all values of spreadsheet '%s'? (y/n) " % ss.ssId).lower() == 'y':        
+        for sheet in ss.sheets:
+            try:
+                ss.clear_values(sheet.title)
+            except errors.HttpError as err:
+                print("Did not clear protected sheet '%s'." % sheet.title)
+                
 if __name__ == '__main__':
     main()
+    
+    
+    
+    
+    
+    
+    
+    
