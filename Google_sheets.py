@@ -54,6 +54,12 @@ def get_credentials():
         print('Storing credentials to ' + credential_path)
     return credentials
 
+def get_cellrange(name, rowlength, rowstart=1,columnlength=1,columnstart=1):
+    '''Currently does not support rowlength>25'''
+    cellrange=name+'!A{}:'.format(rowstart)
+    cellrange+=chr(65+rowlength)+str(rowstart+columnlength-1)
+    return cellrange
+    
 class Sheet:
     def __init__(self,SheetProperties):
         self.json=SheetProperties
@@ -65,17 +71,17 @@ class Sheet:
             self.empty=False
         except KeyError:
             self.empty=True
-            print('Empty sheet {} initialized'.format(self.title))
-        # The above are used more frequently.
         
         self.Type=SheetProperties['properties']['sheetType']
         self.gridProperties=SheetProperties['properties']['gridProperties']
 
     def get_row_insertion_index(self):
         if not self.empty:
+            print(self.rowData)
+            print(len(self.rowData))
             return len(self.rowData)+1
         return 1
-        
+
 class Spreadsheet:
     def __init__(self,spreadsheetId):
         # add bool "execute" parameter to functions to specify whether it should add to batch or not.
@@ -88,30 +94,26 @@ class Spreadsheet:
         self.service = discovery.build('sheets', 'v4', http=http,
                               discoveryServiceUrl=discoveryUrl)
         
-        self.sheets=[Sheet(sheet) for sheet in self.service.spreadsheets().get(
-                        spreadsheetId=self.ssId,includeGridData=True).execute()['sheets']]
+        self.sheets={sheet['properties']['title']:Sheet(sheet) for sheet in self.service.spreadsheets().get(
+                        spreadsheetId=self.ssId,includeGridData=True).execute()['sheets']}
         self.batch={"valueInputOption": "USER_ENTERED","data": []}
             
-    def batchUpdate(self,values,cellrange):
-        self.batch['data'].append({'range':cellrange,'majorDimension':'ROWS','values':values})
+    def batchUpdate(self,values,cellrange, majorDimension='ROWS'):
+        self.batch['data'].append({'range':cellrange,'majorDimension':majorDimension,'values':values})
         
     def batchExecute(self):
          resp=self.service.spreadsheets().values().batchUpdate(spreadsheetId=self.ssId,body=self.batch).execute()
          self.batch={"valueInputOption": "USER_ENTERED","data": []}
-        
+         return resp
     def get_sheet(self, title):
-        for sheet in self.sheets:
-            if sheet.title == title:
-                return sheet
-        else:
-            return False
+        return self.sheets.get(title)
             
     def get_sheet_values(self,cellrange):
         response=self.service.spreadsheets().values().get(
                            spreadsheetId=self.ssId, range=cellrange).execute()
         return response.get('values', [])
 
-    def add_sheet(self,title,num_rows=4525, num_columns=125,rgb=(0,0,0)):
+    def add_sheet(self,title,num_rows=4515, num_columns=26,rgb=(0,0,0)):
         r,g,b = rgb
         request_body = {'requests':[{'addSheet':{'properties':{
             'title':title,'gridProperties':{
@@ -121,10 +123,12 @@ class Spreadsheet:
         try:
             response=self.service.spreadsheets().batchUpdate(spreadsheetId=self.ssId,
                                                              body=request_body).execute()
-            self.sheets.append(Sheet(response['replies'][0]['addSheet']))
-        except errors.HttpError:
-            print("NOTE: spreadsheet with name '%s' already exists." % title) 
-        
+            sheet=Sheet(response['replies'][0]['addSheet'])
+            self.sheets[sheet.title]=sheet
+            return sheet
+        except errors.HttpError as err:
+            print(err)
+            
     def clear_values(self,title):
         '''Preserves formatting'''
         request_body = {'requests': [{'updateCells': {
@@ -155,16 +159,16 @@ class Spreadsheet:
                                                 body=request_body).execute()
         
 def main():
-    '''Clears all non-protected sheets'''
+    '''Clears all non-protected sheets (graphs and formatting is preserved).'''
     ID='1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc' # Testing scripts
     ID='12YdppOoZUNZxhXvcY_cRgfXEfRnR_izlBsF8Sin3rw4' # EU4 Multiplayer Sheet
     ss=Spreadsheet(ID)
     if input("Clear all values of spreadsheet '%s'? (y/n) " % ss.ssId).lower() == 'y':        
-        for sheet in ss.sheets:
+        for title in ss.sheets.keys():
             try:
-                ss.clear_values(sheet.title)
+                ss.clear_values(title)
             except errors.HttpError as err:
-                print("Did not clear protected sheet '%s'." % sheet.title)
+                print("Did not clear protected sheet '%s'." % title)
                 
 if __name__ == '__main__':
     main()
