@@ -9,7 +9,7 @@
 import os
 import re
 
-USERNAME='Larsson'
+from settings import USERNAME
 
 savegame_dir = "C:\\Users\\{}\\Documents\\Paradox Interactive\\Europa Universalis IV\\save games".format(USERNAME)
 running_wd=os.getcwd()
@@ -21,7 +21,7 @@ def latest_eu4_save():
     files.sort(key=lambda x: os.path.getmtime(x))
     return files[-1]
     
-def EU4_scrape_nations(save_txt,variables, tags): #Should
+def EU4_scrape_nations(save_txt,variables, tags): # Should handle case of a tag not existing anymore.
     result_table={}
     for tag in tags: # make regex dependent on
         result_table[tag]={}
@@ -82,8 +82,8 @@ if __name__ == '__main__':
     while True:
         try:
             print('listening...')
-            latest_save = latest_eu4_save()
             try:
+                latest_save = latest_eu4_save()
                 isfile=os.path.isfile(latest_save)
                 if isfile:
                     latest_modified_time = os.path.getmtime(latest_save)
@@ -105,7 +105,7 @@ if __name__ == '__main__':
                         save_txt = save.read()
                         result_table = EU4_scrape_nations(save_txt, variables, tags)
                         
-                    if int(date[5:-2]) in range(1,13,6):
+                    if int(date.split('-')[1]) in range(1,13,6): # if month is 1 or 7.
                         ### Construct pontogram sheetvalues and add them to the spreadsheet.
                         overlords_and_subjects_tags=[*tags]
                         for tag in tags:
@@ -131,13 +131,14 @@ if __name__ == '__main__':
                                     column.append(0)
                             values.append(column)
                         values=[[date,*overlords_and_subjects_tags],*sorted(values, key=lambda x: total_development[x[0]], reverse=True)]
+
                         name='Pontogram'
                         if not SS.get_sheet(name):
                             SS.add_sheet(name)
                         SS.clear_values(name)
                         SS.batchUpdate(values, get_cellrange(name, len(tags)+1,
                                          columnlength=len(overlords_and_subjects_tags)+1), majorDimension='COLUMNS')
-                        
+                            
                     ### Add values to spreadsheet
                     for var in variables:
                         # if no sheet was found, add sheet
@@ -146,12 +147,12 @@ if __name__ == '__main__':
                         if not SS.get_sheet_values(get_cellrange(var, len(tags)+1)):
                             cellrange = get_cellrange(var, len(tags)+1)
                             SS.batchUpdate([['Date', *tags]], cellrange)
-                            row_insertion_index=2
+                            row_insertion_index = 2
                         values = [result_table[tag][var] for tag in tags]
                         cellrange = get_cellrange(var, len(tags)+1, rowstart=row_insertion_index)
                         SS.batchUpdate([[date, *values]], cellrange, majorDimension='ROWS')
                     SS.batchExecute()
-                    row_insertion_index+=1
+                    row_insertion_index += 1
                     previous_modified_time = latest_modified_time
                 time.sleep(3)
         except errors.HttpError as err:
