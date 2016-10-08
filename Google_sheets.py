@@ -148,9 +148,9 @@ class Spreadsheet:
         
 def main():
     '''Clears all non-protected sheets (graphs and formatting is preserved).'''
-    ID='1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc' # Testing scripts
-    ID='12YdppOoZUNZxhXvcY_cRgfXEfRnR_izlBsF8Sin3rw4' # EU4 Multiplayer Sheet
-    ss=Spreadsheet(ID)
+    from settings import SPREADSHEET_ID
+    
+    ss=Spreadsheet(SPREADSHEET_ID)
     if input("Clear all values of spreadsheet '%s'? (y/n) " % ss.ssId).lower() == 'y':        
         for title in ss.sheets.keys():
             try:

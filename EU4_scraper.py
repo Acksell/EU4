@@ -69,12 +69,10 @@ class SheetNotFound(Exception):pass
 if __name__ == '__main__':
     import time
     from apiclient import errors
-    from Google_sheets import Spreadsheet,get_cellrange
+    from Google_sheets import Spreadsheet, get_cellrange
     
-    from settings import tags,variables
-    
-    SPREADSHEET_ID = "12YdppOoZUNZxhXvcY_cRgfXEfRnR_izlBsF8Sin3rw4"
-                   
+    from settings import SPREADSHEET_ID, tags, variables
+                       
     previous_modified_time = 0
     SS = Spreadsheet(SPREADSHEET_ID)
     #any variable works, not just 'raw_development'
