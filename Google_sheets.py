@@ -84,13 +84,11 @@ class Spreadsheet:
                         spreadsheetId=self.ssId, includeGridData=True).execute()['sheets']}
         self.batch = {"valueInputOption": "USER_ENTERED", "data": []}
             
-<<<<<<< HEAD
     def batchUpdate(self,values,cellrange, majorDimension='ROWS'):
         self.batch['data'].append({'range':cellrange,'majorDimension':majorDimension,'values':values})
-=======
+
     def batchUpdate(self, values, cellrange, majorDimension='ROWS'):
         self.batch['data'].append({'range':cellrange, 'majorDimension':majorDimension, 'values':values})
->>>>>>> dfdb9f3cfb4aed62f0f32b4de5928654bec4e9bf
         
     def batchExecute(self):
          resp = self.service.spreadsheets().values().batchUpdate(spreadsheetId=self.ssId,
@@ -153,15 +151,12 @@ class Spreadsheet:
         
 def main():
     '''Clears all non-protected sheets (graphs and formatting is preserved).'''
-<<<<<<< HEAD
     ID='1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc' # Testing scripts
     ID='12YdppOoZUNZxhXvcY_cRgfXEfRnR_izlBsF8Sin3rw4' # EU4 Multiplayer Sheet
     ss=Spreadsheet(ID)
-=======
     from settings import SPREADSHEET_ID
     
     ss=Spreadsheet(SPREADSHEET_ID)
->>>>>>> dfdb9f3cfb4aed62f0f32b4de5928654bec4e9bf
     if input("Clear all values of spreadsheet '%s'? (y/n) " % ss.ssId).lower() == 'y':        
         for title in ss.sheets.keys():
             try:

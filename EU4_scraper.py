@@ -126,12 +126,12 @@ if __name__ == '__main__':
                                     column.append(dev)
                                     total_development[tag1]+=dev
                                 else:
-                                    column.append(0)
+                                    column.append('')
                             values.append(column)
                         values=[[date,*overlords_and_subjects_tags],*sorted(values, key=lambda x: total_development[x[0]], reverse=True)]
 
                         name='Pontogram'
-                        if not SS.get_sheet(name):
+                        if not SS.get_sheet(name): 
                             SS.add_sheet(name)
                         SS.clear_values(name)
                         SS.batchUpdate(values, get_cellrange(name, len(tags)+1,
