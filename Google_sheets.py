@@ -92,8 +92,8 @@ class Spreadsheet:
                         spreadsheetId=self.ssId,includeGridData=True).execute()['sheets']]
         self.batch={"valueInputOption": "USER_ENTERED","data": []}
             
-    def batchUpdate(self,values,cellrange):
-        self.batch['data'].append({'range':cellrange,'majorDimension':'ROWS','values':values})
+    def batchUpdate(self,values,cellrange, majorDimension='ROWS'):
+        self.batch['data'].append({'range':cellrange,'majorDimension':majorDimension,'values':values})
         
     def batchExecute(self):
          resp=self.service.spreadsheets().values().batchUpdate(spreadsheetId=self.ssId,body=self.batch).execute()
@@ -155,7 +155,7 @@ class Spreadsheet:
                                                 body=request_body).execute()
         
 def main():
-    '''Clears all non-protected sheets'''
+    '''Clears all non-protected sheets (graphs and formatting is preserved).'''
     ID='1unIM0L_Jpgy7hIDOY2srYHFndWRFLCDEdhP_G55cNCc' # Testing scripts
     ID='12YdppOoZUNZxhXvcY_cRgfXEfRnR_izlBsF8Sin3rw4' # EU4 Multiplayer Sheet
     ss=Spreadsheet(ID)
