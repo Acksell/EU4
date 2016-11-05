@@ -148,9 +148,12 @@ class Spreadsheet:
         
 def main():
     '''Clears all non-protected sheets (graphs and formatting is preserved).'''
-    from settings import SPREADSHEET_ID
+    from settings import SPREADSHEET_ID, variables
     
     ss=Spreadsheet(SPREADSHEET_ID)
+    for var in variables:
+        if var not in ss.sheets:
+            ss.add_sheet(var)
     if input("Clear all values of spreadsheet '%s'? (y/n) " % ss.ssId).lower() == 'y':        
         for title in ss.sheets.keys():
             try:
