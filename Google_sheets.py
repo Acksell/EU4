@@ -83,7 +83,7 @@ class Spreadsheet:
         self.sheets = {sheet['properties']['title']:Sheet(sheet) for sheet in self.service.spreadsheets().get(
                         spreadsheetId=self.ssId, includeGridData=True).execute()['sheets']}
         self.batch = {"valueInputOption": "USER_ENTERED", "data": []}
-            
+
     def batchUpdate(self, values, cellrange, majorDimension='ROWS'):
         self.batch['data'].append({'range':cellrange, 'majorDimension':majorDimension, 'values':values})
         
