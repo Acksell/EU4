@@ -245,6 +245,7 @@ if __name__ == '__main__':
                         name='Pontogram'
                         if not SS.get_sheet(name):
                             print('Adding sheet %s...'%name)
+                        if not SS.get_sheet(name): 
                             SS.add_sheet(name)
                         SS.clear_values(name)
                         SS.batchUpdate(values, get_cellrange(name, len(tags)+1,
