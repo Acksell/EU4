@@ -60,12 +60,10 @@ def get_subject_nations(save_txt, tag):
             if regex_result[0][0].count('raw_development') > 1:  # makes sure it doesnt overlap into other nations.
                 continue
             else:
-                #removes whitespaces
+                # Extracts the tags from a string of the form "\n\t\t\tTAG1 TAG2 TAG3\n\t\t"
                 regex_result = regex_result[0][1].split()
-                #removes quotes and yields subject nation
-                for nation in regex_result:
-                    yield nation.split('"')[1]
-                break
+                return regex_result
+
 
 def random_string(length):
     return ''.join(choice(ascii_lowercase) for x in range(length))
