@@ -7,17 +7,12 @@ pip install --upgrade google-api-python-client
 from __future__ import print_function
 import httplib2
 import os
+import pickle
 
 from apiclient import discovery,errors
-import oauth2client
-from oauth2client import client
-from oauth2client import tools
 
-try:
-    import argparse
-    flags = argparse.ArgumentParser(parents=[tools.argparser]).parse_args()
-except ImportError:
-    flags = None
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.auth.transport.requests import Request
 
 # If modifying these scopes, delete your previously saved credentials
 # at ~/.credentials/sheets.googleapis.com-python-quickstart.json
@@ -26,7 +21,7 @@ CLIENT_SECRET_FILE = 'client_secret.json'
 APPLICATION_NAME = 'EU4 MP Stats Updater'
 
 
-def get_credentials():
+def get_credentials(credentials_dir):
     """Gets valid user credentials from storage.
 
     If nothing has been stored, or if the stored credentials are invalid,
@@ -35,24 +30,28 @@ def get_credentials():
     Returns:
         Credentials, the obtained credential.
     """
-    home_dir = os.path.expanduser('~')
-    credential_dir = os.path.join(home_dir, '.credentials')
-    if not os.path.exists(credential_dir):
-        os.makedirs(credential_dir)
-    credential_path = os.path.join(credential_dir,
-                                   'sheets.googleapis.com-python-quickstart.json')
-
-    store = oauth2client.file.Storage(credential_path)
-    credentials = store.get()
-    if not credentials or credentials.invalid:
-        flow = client.flow_from_clientsecrets(CLIENT_SECRET_FILE, SCOPES)
-        flow.user_agent = APPLICATION_NAME
-        if flags:
-            credentials = tools.run_flow(flow, store, flags)
-        else: # Needed only for compatibility with Python 2.6
-            credentials = tools.run(flow, store)
-        print('Storing credentials to ' + credential_path)
-    return credentials
+    creds = None
+    # The file token.pickle stores the user's access and refresh tokens, and is
+    # created automatically when the authorization flow completes for the first
+    # time.
+    token_file_path=os.path.join(credentials_dir, 'token.pickle')
+    if os.path.exists(token_file_path):
+        with open(token_file_path, 'rb') as token:
+            creds = pickle.load(token)
+    # If there are no (valid) credentials available, let the user log in.
+    if not creds or not creds.valid:
+        if creds and creds.expired and creds.refresh_token:
+            creds.refresh(Request())
+        else:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                os.path.join(credentials_dir, CLIENT_SECRET_FILE), # clientsecret file
+                SCOPES
+            )
+            creds = flow.run_local_server(port=0)
+        # Save the credentials for the next run
+        with open(token_file_path, 'wb') as token:
+            pickle.dump(creds, token)
+    return creds
 
 def get_cellrange(name, rowlength, rowstart=1, columnlength=1, columnstart=1):
     '''Currently does not support rowlength>25'''
@@ -70,14 +69,13 @@ class Sheet:
         self.gridProperties = SheetProperties['properties']['gridProperties']
 
 class Spreadsheet:
-    def __init__(self, spreadsheetId):
+    def __init__(self, spreadsheetId, credentials_dir='./'):
         self.ssId=spreadsheetId
 
-        credentials = get_credentials()
-        http = credentials.authorize(httplib2.Http())
+        credentials = get_credentials(credentials_dir)
         discoveryUrl = ('https://sheets.googleapis.com/$discovery/rest?'
                     'version=v4')
-        self.service = discovery.build('sheets', 'v4', http=http,
+        self.service = discovery.build('sheets', 'v4',credentials=credentials,
                               discoveryServiceUrl=discoveryUrl)
 
         self.sheets = {sheet['properties']['title']:Sheet(sheet) for sheet in self.service.spreadsheets().get(
@@ -150,7 +148,7 @@ def main():
     '''Clears all non-protected sheets (graphs and formatting is preserved).'''
     from settings import SPREADSHEET_ID, variables
 
-    ss=Spreadsheet(SPREADSHEET_ID)
+    ss=Spreadsheet(SPREADSHEET_ID,os.getcwd())
     for var in variables:
         if var not in ss.sheets:
             ss.add_sheet(var)

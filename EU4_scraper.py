@@ -43,7 +43,7 @@ def EU4_scrape_nations(save_txt,variables, tags): # Should handle case of a tag 
                 result_table[tag][var] = value[0].replace('.',',')  #[0] because regex returns a list
             except IndexError as err:
                 log('savefile.log','w', save_txt, regex, 'tag:{0} var:{1} value: {2}'.format(tag,var,value))
-                print(pattern)
+                print(regex)
                 print(tag,var,value)
                 raise err
     return result_table
@@ -68,73 +68,73 @@ def get_subject_nations(save_txt, tag):
                 break
 
 def random_string(length):
-	return ''.join(choice(ascii_lowercase) for x in range(length))
+    return ''.join(choice(ascii_lowercase) for x in range(length))
 
 def replace_all(text, char_map):
-	'''Returns text with all substrings a replaced with string b'''
-	for a,b in char_map.items():
-		while a in text:
-			text = text.replace(a,b)
-	return text
+    '''Returns text with all substrings a replaced with string b'''
+    for a,b in char_map.items():
+        while a in text:
+            text = text.replace(a,b)
+    return text
 
 def split_more(text, *split_chars):
-	'''split() with more than 1 delimiter.'''
-	unique_string = random_string(10)
-	while unique_string in text:
-		unique_string = random_string(10)
-	for char in split_chars:
-		text = replace_all(text, {char:unique_string})
-	return text.split(unique_string)
+    '''split() with more than 1 delimiter.'''
+    unique_string = random_string(10)
+    while unique_string in text:
+        unique_string = random_string(10)
+    for char in split_chars:
+        text = replace_all(text, {char:unique_string})
+    return text.split(unique_string)
 
 def get_bracket_content(text, fetch_amount=1, indent_level=0):
-	bracket_count = 0
-	break_points = [0]
-	fetches = 0
-	for i,char in enumerate(text):
-		if char == '{':
-			if bracket_count == indent_level:
-				break_points.append(i)
-			bracket_count+=1
-		elif char == '}':
-			if bracket_count == indent_level+1:
-				break_points.append(i)
-				fetches += 1
-				if fetches >= fetch_amount:
-					break
-			bracket_count -= 1
-		elif bracket_count == 0 and fetches:
-			break
-	return [text[break_points[i]:break_points[i+1]+1] for i in range(2*fetches)]
+    bracket_count = 0
+    break_points = [0]
+    fetches = 0
+    for i,char in enumerate(text):
+        if char == '{':
+            if bracket_count == indent_level:
+                break_points.append(i)
+            bracket_count+=1
+        elif char == '}':
+            if bracket_count == indent_level+1:
+                break_points.append(i)
+                fetches += 1
+                if fetches >= fetch_amount:
+                    break
+            bracket_count -= 1
+        elif bracket_count == 0 and fetches:
+            break
+    return [text[break_points[i]:break_points[i+1]+1] for i in range(2*fetches)]
 
 def data_from_startpoint(text, matchstring):
     '''returns a sliced string starting from the first occurance of matchstring'''
-	return text[text.index(matchstring):] if matchstring in text else ''
+    return text[text.index(matchstring):] if matchstring in text else ''
 
 def get_all_first_variables(save_txt):
     '''
     Gets the first variable which is defined in a country's header. This variable name
     is needed for the regular expression scraping the country header to be unambiguous.
     '''
-	unique_first_variables = []
-	country_content = data_from_startpoint(save_txt, '\ncountries={')
-	# float('inf') will fetch all.
-	res = get_bracket_content(country_content, fetch_amount=float('inf'), indent_level=1)
-	for i in range(1, len(res), 2):
-		first_variable = [item for item in split_more(res[i], '\n', '\t', '=') if item][1]
-		if first_variable not in unique_first_variables:
-			unique_first_variables.append(first_variable)
-	return unique_first_variables
+    unique_first_variables = []
+    country_content = data_from_startpoint(save_txt, '\ncountries={')
+    # float('inf') will fetch all.
+    res = get_bracket_content(country_content, fetch_amount=float('inf'), indent_level=1)
+    for i in range(1, len(res), 2):
+        first_variable = [item for item in split_more(res[i], '\n', '\t', '=') if item][1]
+        if first_variable not in unique_first_variables:
+            unique_first_variables.append(first_variable)
+    return unique_first_variables
 
 def get_players_countries(save_txt):
     '''Returns a dictionary with playernames as keys and their country tag as values.'''
-	matchstring = 'players_countries={'
-	pc = get_bracket_content(data_from_startpoint(save_txt, matchstring),indent_level=0)
-	if pc:
-		pc = [i for i in split_more(pc[1], '\n', '\t', '{', '}', '"') if i]
-		pc = dict([(pc[i], pc[i+1]) for i in range(0,len(pc),2)])
-	else:
-		pc={}
-	return pc
+    matchstring = 'players_countries={'
+    pc = get_bracket_content(data_from_startpoint(save_txt, matchstring),indent_level=0)
+    if pc:
+        pc = [i for i in split_more(pc[1], '\n', '\t', '{', '}', '"') if i]
+        pc = dict([(pc[i], pc[i+1]) for i in range(0,len(pc),2)])
+    else:
+        pc={}
+    return pc
 
 
 if __name__ == '__main__':
@@ -152,7 +152,7 @@ if __name__ == '__main__':
     print('Initializing Spreadsheet...')
     while not initialized:
         try:
-            SS = Spreadsheet(SPREADSHEET_ID)
+            SS = Spreadsheet(SPREADSHEET_ID, credentials_dir=running_wd)
         except errors.HttpError as err:
             print(err)
             print('Currently unable to reach the server, will try again in 15 seconds.')
@@ -215,6 +215,7 @@ if __name__ == '__main__':
                         FIRST_VARIABLES = get_all_first_variables(save_txt)
                     print('Scraping tracked tags...')
                     result_table = EU4_scrape_nations(save_txt, variables, tags)
+
                     if int(date.split('-')[1]) in range(1,13,6): # if month is 1 or 7.
                         ### Construct pontogram sheetvalues and add them to the spreadsheet.
                         overlords_and_subjects_tags=[*tags]
