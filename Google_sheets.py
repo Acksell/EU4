@@ -69,7 +69,7 @@ class Sheet:
         self.gridProperties = SheetProperties['properties']['gridProperties']
 
 class Spreadsheet:
-    def __init__(self, spreadsheetId, credentials_dir='./'):
+    def __init__(self, spreadsheetId, credentials_dir='./', retry_initialisation=False):
         self.ssId=spreadsheetId
 
         credentials = get_credentials(credentials_dir)
