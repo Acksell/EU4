@@ -1,0 +1,17 @@
+{
+    "SPREADSHEET_ID": "1qRkYZu6W_tMoLmmpkGKtgD5xb_ztDC-SVVsoKlE6xXI",
+    "variables": [
+        "base_tax",
+        "raw_development",
+        "treasury",
+        "estimated_monthly_income",
+        "non_overseas_development",
+        "manpower",
+        "num_of_provinces_in_states",
+        "num_of_provinces_in_territories",
+        "development"
+    ],
+    "tags": [
+        "CAS"
+    ]
+}
