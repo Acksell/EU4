@@ -6,17 +6,10 @@
 
 import os
 import re
-import json
-
 from random import choice
 from string import ascii_lowercase
 
-
-
-with open("settings.json",'r') as settingsfile:
-    settings = json.load(settingsfile)
-
-USERNAME = os.getlogin()
+from settings import USERNAME
 
 savegame_dir = "C:\\Users\\{}\\Documents\\Paradox Interactive\\Europa Universalis IV\\save games".format(USERNAME)
 running_wd=os.getcwd()
@@ -28,12 +21,6 @@ def log(filename, mode, *text):
         for output in text:
             file.write(repr(output))
     os.chdir(savegame_dir)
-
-def latest_eu4_save():
-    files = filter(os.path.isfile, os.listdir(savegame_dir))
-    files = [os.path.join(savegame_dir, f) for f in files] # add path to each file
-    files.sort(key=lambda x: os.path.getmtime(x))
-    return files[-1]
 
 def EU4_scrape_nations(save_txt,variables, tags): # Should handle case of a tag not existing anymore.
     result_table = {}
@@ -50,7 +37,9 @@ def EU4_scrape_nations(save_txt,variables, tags): # Should handle case of a tag 
                 result_table[tag][var] = value[0].replace('.',',')  #[0] because regex returns a list
             except IndexError as err:
                 log('savefile.log','w', save_txt, regex, 'tag:{0} var:{1} value: {2}'.format(tag,var,value))
-                print(f"Bad value found for {tag}'s {var} using {regex}. Value found was {value}.")
+                print(regex)
+                print(tag,var,value)
+                raise err
     return result_table
 
 # TODO: just get_bracket_content() of 'subjects' index, incorporate into EU4_scrape_nations
@@ -145,8 +134,7 @@ if __name__ == '__main__':
     from apiclient import errors
     from Google_sheets import Spreadsheet, get_cellrange
 
-    tags =           settings["tags"]
-    variables =      settings["variables"]
+    from settings import SPREADSHEET_ID, tags, variables
 
     previous_modified_time = 0
     FIRST_VARIABLES = []
@@ -156,7 +144,7 @@ if __name__ == '__main__':
     print('Initializing Spreadsheet...')
     while not initialized:
         try:
-            SS = Spreadsheet(settings["SPREADSHEET_ID"], credentials_dir=running_wd)
+            SS = Spreadsheet(SPREADSHEET_ID, credentials_dir=running_wd)
         except errors.HttpError as err:
             print(err)
             print('Currently unable to reach the server, will try again in 15 seconds.')
@@ -207,9 +195,8 @@ if __name__ == '__main__':
                                     if new_players_countries[player] != oldtag:
                                         print('A new player nation formed!')
                                         tags[tags.index(oldtag)] = new_players_countries[player]
-                                        with open(os.path.join(running_wd, 'settings.json'), 'w') as settingsfile:
-                                            settings["tags"] = tags
-                                            json.dump(settings, settingsfile, indent=4)
+                                        with open('settings.py','a') as f:
+                                            f.write('\ntags = %s' % repr(tags))
                                         for var in variables:
                                             SS.batchUpdate([['Date',*tags]], get_cellrange(var, len(tags)+1))
                                         SS.batchExecute()
