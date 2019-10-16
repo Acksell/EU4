@@ -53,12 +53,6 @@ def get_credentials(credentials_dir):
             pickle.dump(creds, token)
     return creds
 
-def get_cellrange(name, rowlength, rowstart=1, columnlength=1, columnstart=1):
-    '''Currently does not support rowlength>25'''
-    cellrange = name+'!A{}:'.format(rowstart)
-    cellrange += chr(65+rowlength) + str(rowstart+columnlength-1)
-    return cellrange
-
 class Sheet:
     def __init__(self, SheetProperties):
         self.json = SheetProperties
