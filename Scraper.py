@@ -7,7 +7,7 @@ import traceback
 import helpers
 
 from SaveFile import SaveFile
-
+from pontogram import get_pontogram
 
 class Outputter:
     def __init__(self):
@@ -51,17 +51,25 @@ class ScraperRunner:
             os.chdir(directory)
             self.current_dir = self.SAVEGAME_DIR
 
+    def add_sheets(self):
+        for var in self.settings["variables"]:
+            # Add sheets if not existing
+            if not self.SS.get_sheet(var):
+                self.output.console('Adding sheet %s...' % var)
+                self.SS.add_sheet(var)
+        ponto_sheet_name="Pontogram"
+        if not self.SS.get_sheet(ponto_sheet_name):
+            print('Adding sheet %s...' % ponto_sheet_name)
+            self.SS.add_sheet(ponto_sheet_name)
+
+
     def run(self):
         """
         Main loop. Looks for save games, parses them and
         uploads values to Google Sheets.
         """
         self.switch_directory(self.SAVEGAME_DIR)
-        for var in self.settings["variables"]:
-            # Add sheets if not existing
-            if not self.SS.get_sheet(var):
-                self.output.console('Adding sheet %s...' % var)
-                self.SS.add_sheet(var)
+        self.add_sheets()
         while True:
             self.output.nextdot('listening')
             new_save = self.get_new_save()
@@ -71,9 +79,50 @@ class ScraperRunner:
                 # checks if player nation formed and updates tags
                 self.update_tags()
 
-            # prevent opening of same savefile, only register new ones.
-            self.previous_modified_time = self.latest_modified_time
+                if not self.latest_save.first_variables:
+                    self.output.console('Adjusting for latest patch...')
+                    self.latest_save.set_first_variables()
+
+                self.output.console('Scraping tracked tags...')
+                self.latest_save.EU4_scrape_nations(
+                    self.settings["variables"],
+                    self.tags)
+                
+                ### Construct pontogram sheetvalues and add them to the spreadsheet.
+                if int(self.latest_save.month) in range(1,13,6): # if month is 1 or 7.
+                    self.output.console('Scraping subjects...')
+                    self.latest_save.scrape_tags_subjects(self.tags)
+                    overlords_and_subjects_tags = self.latest_save.overlords_and_subjects_tags # set by scrape_tags_subjects
+                    self.output.console('Making Pontogram')
+                    values = self.latest_save.get_pontogram(self.tags)
+                    # update pontogram
+                    print(self.latest_save.result_table)
+                    self.SS.clear_values("Pontogram")
+                    self.SS.batchUpdate(values, helpers.get_cellrange("Pontogram",
+                        len(self.tags)+1,
+                        columnlength=len(overlords_and_subjects_tags)+1),
+                        majorDimension='COLUMNS')
+                self.upload_values() # uploads all variables for each tag.
+                # prevent opening of same savefile, only register new ones.
+                self.row_insertion_index += 1
+                self.previous_modified_time = self.latest_modified_time
             time.sleep(1)
+
+    def upload_values(self):
+        self.output.console('Uploading values...')
+        ### Add values to spreadsheet
+        if self.row_insertion_index==1:
+            for var in self.settings["variables"]:
+                # initial update
+                cellrange = helpers.get_cellrange(var, len(self.tags)+1)
+                self.SS.batchUpdate([['Date', *self.tags]], cellrange)
+            self.row_insertion_index=2
+        for var in self.settings["variables"]:
+            values = [self.latest_save.result_table[tag][var] for tag in self.tags]
+            cellrange = helpers.get_cellrange(var, len(self.tags)+1, rowstart=self.row_insertion_index)
+            self.SS.batchUpdate([[self.latest_save.date, *values]], cellrange,
+                majorDimension='ROWS')
+        self.SS.batchExecute()
 
     def get_new_save(self):
         """
