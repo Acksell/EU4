@@ -1,9 +1,13 @@
-import time
 import os
 import sys
+import time
+import json
 import traceback
 
 import helpers
+
+from SaveFile import SaveFile
+
 
 class Outputter:
     def __init__(self):
@@ -16,33 +20,8 @@ class Outputter:
         else:
             self.dot_counter+=1
 
-
-class SaveFile:
-    def __init__(self, filepath, read_file_on_init=True):
-        self.filepath = filepath
-        self.name = filepath.split('\\')[-1]
-        self.isfile = os.path.isfile(filepath)
-        self.modified = os.path.getmtime(filepath)
-        self.filesize = os.path.getsize(filepath) # given in bytes
-
-        self.date=None
-        self.save_txt=None
-        if read_file_on_init:
-            self.read_file() # sets self.date and self.save_text
-
-    def read_file(self):
-        """Opens the self.filepath and sets self.date and self.save_text"""
-        with open(self.filepath, 'r') as save:
-            for line in range(2):
-                date = save.readline() # get date from 2nd line
-            # remove var name and dots (yyyy/mm/dd)
-            self.date = date[5:].replace('.', '-').replace('.', '-')[:-1] #:-1 to remove '\n'
-            self.save_txt = save.read()
-
-    def __str__(self):
-        return self.name
-
-
+    def console(self, *msg):
+        print(*msg)
 
 class ScraperRunner:
     SAVEGAME_DIR = f"C:\\Users\\{os.getlogin()}\\Documents\\Paradox Interactive\\Europa Universalis IV\\save games"
@@ -57,8 +36,15 @@ class ScraperRunner:
         self.previous_modified_time = 0
         self.latest_modified_time = None
         self.latest_save = None
-
         self.current_dir = os.getcwd()
+
+        self.players_countries={} # defined by savefile
+        self.load_settings()
+
+    def load_settings(self):
+        with open("settings.json",'r') as settingsfile:
+            self.settings = json.load(settingsfile)
+        self.tags = self.settings["tags"]
 
     def switch_directory(self, directory):
         if self.current_dir != directory:    
@@ -71,13 +57,20 @@ class ScraperRunner:
         uploads values to Google Sheets.
         """
         self.switch_directory(self.SAVEGAME_DIR)
+        for var in self.settings["variables"]:
+            # Add sheets if not existing
+            if not self.SS.get_sheet(var):
+                self.output.console('Adding sheet %s...' % var)
+                self.SS.add_sheet(var)
         while True:
             self.output.nextdot('listening')
             new_save = self.get_new_save()
             if new_save is not None:
                 new_save.read_file()  # read file for some initialisation
-                print("NEW SAVE FOUND! It is called '%s'" % self.latest_save.name)
-                print("savefile date",self.latest_save.date)
+                self.output.console("NEW SAVE FOUND! It is called '%s'" % self.latest_save.name)
+                # checks if player nation formed and updates tags
+                self.update_tags()
+
             # prevent opening of same savefile, only register new ones.
             self.previous_modified_time = self.latest_modified_time
             time.sleep(1)
@@ -111,6 +104,31 @@ class ScraperRunner:
         files.sort(key=lambda x: os.path.getmtime(x)) # sort files by latest
         if files:
             return SaveFile(files[-1], read_file_on_init=False) # return latest savefile
+
+    def get_new_tags(self):
+        """Returns"""
+        new_tags=self.tags
+        new_players_countries = self.latest_save.get_players_countries()
+        if len(new_players_countries.items()) > 1:
+            if new_players_countries != self.players_countries:
+                for player, oldtag in self.players_countries.items():
+                    if player in new_players_countries:
+                        if new_players_countries[player] != oldtag:
+                            self.output.console('A new player nation formed!')
+                            new_tags[new_tags.index(oldtag)] = new_players_countries[player]
+                self.players_countries = new_players_countries
+        return new_tags
+
+    def update_tags(self):
+        tags = self.get_new_tags()
+        with open(os.path.join(self.RUNNING_DIR, 'settings.json'), 'w') as settingsfile:
+            self.settings["tags"] = tags
+            json.dump(self.settings, settingsfile, indent=4)
+        for var in self.settings["variables"]:
+            self.SS.batchUpdate([['Date',*tags]], helpers.get_cellrange(var, len(tags)+1))
+        self.SS.batchExecute()
+        self.tags = tags # update state after running all above to make sure in sync.
+
 
     def log(self, filename, mode, *text):        
         self.switch_directory(self.RUNNING_DIR)
