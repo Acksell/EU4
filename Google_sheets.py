@@ -140,10 +140,13 @@ class Spreadsheet:
 
 def main():
     '''Clears all non-protected sheets (graphs and formatting is preserved).'''
-    from settings import SPREADSHEET_ID, variables
+    import json
 
-    ss=Spreadsheet(SPREADSHEET_ID,os.getcwd())
-    for var in variables:
+    with open("settings.json",'r') as settingsfile:
+        settings = json.load(settingsfile)
+
+    ss=Spreadsheet(settings["SPREADSHEET_ID"],os.getcwd())
+    for var in settings["variables"]:
         if var not in ss.sheets:
             ss.add_sheet(var)
     if input("Clear all values of spreadsheet '%s'? (y/n) " % ss.ssId).lower() == 'y':
