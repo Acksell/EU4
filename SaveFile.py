@@ -19,6 +19,7 @@ class SaveFile:
         self.first_variables=None
         if read_file_on_init:
             self.read_file() # sets self.date and self.save_text
+        self.result_table={}
 
     def read_file(self):
         """Opens the self.filepath and sets self.date and self.save_text"""
@@ -27,6 +28,7 @@ class SaveFile:
                 date = save.readline() # get date from 2nd line
             # remove var name and dots (yyyy/mm/dd)
             self.date = date[5:].replace('.', '-').replace('.', '-')[:-1] #:-1 to remove '\n'
+            self.year, self.month, self.day = self.date.split('-')
             self.save_txt = save.read()
 
     def get_players_countries(self):
@@ -57,8 +59,9 @@ class SaveFile:
                     # Extracts the tags from a string of the form "\n\t\t\tTAG1 TAG2 TAG3\n\t\t"
                     regex_result = regex_result[0][1].split()
                     return regex_result
+        return []
 
-    def get_all_first_variables(self):
+    def set_first_variables(self):
         '''
         Gets the first variable which is defined in a country's header. This variable name
         is needed for the regular expression scraping the country header to be unambiguous.
@@ -72,11 +75,20 @@ class SaveFile:
             indent_level=1
         )
         for i in range(1, len(res), 2):
-            first_variable = [item for item in split_more(res[i], '\n', '\t', '=') if item][1]
+            first_variable = [item for item in helpers.split_more(res[i], '\n', '\t', '=') if item][1]
             if first_variable not in unique_first_variables:
                 unique_first_variables.append(first_variable)
         self.first_variables = unique_first_variables
         return unique_first_variables
+
+    def scrape_tags_subjects(self, tags):
+        self.overlords_and_subjects_tags=[*tags]
+        for tag in tags:
+            subjects = list(self.get_subject_nations(tag))
+            self.overlords_and_subjects_tags += subjects
+            # add subjects to country tag.
+            self.result_table[tag]['subjects'] = self.EU4_scrape_nations(['raw_development'], subjects)
+        return self.result_table
 
     def EU4_scrape_nations(self, variables, tags): # Should handle case of a tag not existing anymore.
         result_table = {}
@@ -96,7 +108,37 @@ class SaveFile:
                     print(regex)
                     print(tag,var,value)
                     raise err
+        # BUG/feature: Subjects get inserted in root as well as [tag]['subjects'],
+        #               should only be inserted in [tag]['subjects'].
+        self.result_table.update(result_table)
         return result_table
+
+    def get_pontogram(self, tags):
+        # Magic works in mysterious ways
+        values=[]
+        total_development={}
+        referenced_as_overlord=[]
+        referenced_as_subject=[]
+        for tag1 in tags:
+            column = [tag1]
+            total_development[tag1] = 0
+            for tag2 in self.overlords_and_subjects_tags:
+                if tag2 == tag1 and tag2 not in referenced_as_overlord:
+                    dev = int(self.result_table[tag1]['raw_development'][:-4]) #[:-4] gets rid of comma & trailing 0's
+                    column.append(dev)
+                    total_development[tag1] += dev
+                    referenced_as_overlord.append(tag2)
+                elif tag2 in self.result_table[tag1]['subjects'] and tag2 not in referenced_as_subject:
+                    dev = int(self.result_table[tag1]['subjects'][tag2]['raw_development'][:-4])
+                    column.append(dev)
+                    total_development[tag1] += dev
+                    referenced_as_subject.append(tag2)
+                else:
+                    column.append('')
+            values.append(column)
+        values=[[self.date, *self.overlords_and_subjects_tags], 
+                *sorted(values, key=lambda x: total_development[x[0]], reverse=True)]
+        return values
 
     def __str__(self):
         return self.name
