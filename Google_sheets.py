@@ -155,6 +155,8 @@ def main():
                 ss.clear_values(title)
             except errors.HttpError as err:
                 print("Did not clear protected sheet '%s'." % title)
-
+            else:
+                print("Cleared sheet",title)
+                
 if __name__ == '__main__':
     main()
