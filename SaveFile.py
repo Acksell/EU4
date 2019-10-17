@@ -108,9 +108,10 @@ class SaveFile:
                     print(regex)
                     print(tag,var,value)
                     raise err
-        # BUG/feature: Subjects get inserted in root as well as [tag]['subjects'],
-        #               should only be inserted in [tag]['subjects'].
-        self.result_table.update(result_table)
+            if self.result_table.get(tag):
+                self.result_table[tag].update(result_table)
+            else:
+                self.result_table[tag]=result_table[tag]
         return result_table
 
     def get_pontogram(self, tags):
