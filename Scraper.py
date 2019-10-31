@@ -7,7 +7,6 @@ import traceback
 import helpers
 
 from SaveFile import SaveFile
-from pontogram import get_pontogram
 
 class Outputter:
     def __init__(self):
@@ -24,7 +23,7 @@ class Outputter:
         print(*msg)
 
 class ScraperRunner:
-    SAVEGAME_DIR = f"C:\\Users\\{os.getlogin()}\\Documents\\Paradox Interactive\\Europa Universalis IV\\save games"
+    SAVEGAME_DIR = "C:\\Users\\%s\\Documents\\Paradox Interactive\\Europa Universalis IV\\save games" % os.getlogin()
     RUNNING_DIR = os.getcwd()
 
     def __init__(self, spreadsheet):
@@ -42,7 +41,7 @@ class ScraperRunner:
         self.load_settings()
 
     def load_settings(self):
-        with open("settings.json",'r') as settingsfile:
+        with open("settings.json",'r', encoding="cp437") as settingsfile:
             self.settings = json.load(settingsfile)
         self.tags = self.settings["tags"]
 
@@ -80,6 +79,8 @@ class ScraperRunner:
                 self.update_tags()
 
                 if not self.latest_save.first_variables:
+                    # this is done for each save, but could probably change it to
+                    # run only for one session.
                     self.output.console('Adjusting for latest patch...')
                     self.latest_save.set_first_variables()
 
@@ -170,7 +171,7 @@ class ScraperRunner:
 
     def update_tags(self):
         tags = self.get_new_tags()
-        with open(os.path.join(self.RUNNING_DIR, 'settings.json'), 'w') as settingsfile:
+        with open(os.path.join(self.RUNNING_DIR, 'settings.json'), 'w', encoding="cp437") as settingsfile:
             self.settings["tags"] = tags
             json.dump(self.settings, settingsfile, indent=4)
         for var in self.settings["variables"]:
@@ -181,16 +182,21 @@ class ScraperRunner:
 
     def log(self, filename, mode, *text):        
         self.switch_directory(self.RUNNING_DIR)
-        with open(filename, mode) as file:
+        with open(filename, mode, encoding="cp437") as file:
             for output in text:
                 file.write(output)
         self.switch_directory(self.SAVEGAME_DIR)
 
 
 if __name__ == "__main__":
-    from Google_sheets import Spreadsheet
+    import json
     
-    ss = Spreadsheet("1lRUNpXrwAOpyp-IGDUtPK9dP3uR8diLRljSgxCO72uE", retry_initialisation=True)
+    from Google_sheets import Spreadsheet
 
+    with open("settings.json",'r', encoding="cp437") as f:
+        settings = json.loads(f.read())
+
+    ss = Spreadsheet(settings["SPREADSHEET_ID"], retry_initialisation=True)
+    
     scraper = ScraperRunner(ss)
     scraper.run()
