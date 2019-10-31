@@ -23,7 +23,7 @@ class SaveFile:
 
     def read_file(self):
         """Opens the self.filepath and sets self.date and self.save_text"""
-        with open(self.filepath, 'r') as save:
+        with open(self.filepath, 'r', encoding="cp437") as save:
             for line in range(2):
                 date = save.readline() # get date from 2nd line
             # remove var name and dots (yyyy/mm/dd)
